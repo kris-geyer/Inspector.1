@@ -1,5 +1,8 @@
 package com.example.geyerk1.inspect;
 
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -8,6 +11,7 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.ResolveInfo;
 import android.os.IBinder;
+import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
@@ -32,7 +36,14 @@ public class screenService extends Service {
     public void onCreate() {
         super.onCreate();
 
-        startService(new Intent(this, installedApps.class));
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+        if(!preferences.getBoolean("apps documented", false)){
+            SharedPreferences.Editor editor = preferences.edit();
+            editor.putBoolean("apps documented", true);
+            editor.apply();
+
+            startService(new Intent(this, installedApps.class));
+        }
 
         IntentFilter screenFilter = new IntentFilter();
         screenFilter.addAction(Intent.ACTION_SCREEN_ON);
@@ -47,6 +58,11 @@ public class screenService extends Service {
         appFilter.addDataScheme("package");
 
         registerReceiver(appReceiver, appFilter);
+
+        IntentFilter dateFilter = new IntentFilter();
+        dateFilter.addAction(Intent.ACTION_TIME_TICK);
+
+        registerReceiver(dateReceiver, dateFilter);
     }
 
     private final BroadcastReceiver screenReceiver = new BroadcastReceiver() {
@@ -95,8 +111,35 @@ public class screenService extends Service {
         }
     };
 
-    private void updatePrefs() {
+    private final BroadcastReceiver dateReceiver = new BroadcastReceiver (){
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            switch (intent.getAction()){
+                case Intent.ACTION_TIME_TICK:
+                    detectFortnight();
+                    break;
+            }
+        }
+    };
 
+    private void detectFortnight() {
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+
+        Date date = new Date();
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(date);
+
+        int initialDay = preferences.getInt("date started", 0);
+        int currentDay= cal.get(Calendar.DAY_OF_YEAR);
+
+        Log.i("From screenService", "current hour" + currentDay + " : from prefs: " + initialDay);
+
+        if(currentDay > initialDay){
+            startService(new Intent(this, notificationService.class));
+        }
+    }
+
+    private void updatePrefs() {
 
         SharedPreferences preferences = getSharedPreferences("Apps", Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = preferences.edit();
@@ -144,8 +187,7 @@ public class screenService extends Service {
         Calendar cal = Calendar.getInstance();
         cal.setTime(date);
 
-        String dataEntry = "Time - " +
-                cal.get(Calendar.HOUR_OF_DAY) + "." +
+        String dataEntry = cal.get(Calendar.HOUR_OF_DAY) + "." +
                 cal.get(Calendar.MINUTE) + "." +
                 cal.get(Calendar.SECOND) +" - " +
                 result +":" + "\n";

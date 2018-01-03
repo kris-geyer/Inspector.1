@@ -3,7 +3,9 @@ package com.example.geyerk1.inspect;
 
 import android.app.Service;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.IBinder;
+import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
@@ -23,8 +25,12 @@ public class phonerestarted extends Service{
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        startService(new Intent(getApplicationContext(), screenService.class));
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+        if( preferences.getBoolean("collect data", true)){
+            Log.i("From mainActivity", "going to start Service");
+            startService(new Intent(getApplicationContext(), screenService.class));
         documentRestart();
+        }
         return START_NOT_STICKY;
     }
 
@@ -35,8 +41,7 @@ public class phonerestarted extends Service{
         Calendar cal = Calendar.getInstance();
         cal.setTime(date);
 
-        String dataEntry = "Time: " +
-                cal.get(Calendar.HOUR_OF_DAY) + "." +
+        String dataEntry = cal.get(Calendar.HOUR_OF_DAY) + "." +
                 cal.get(Calendar.MINUTE) + "." +
                 cal.get(Calendar.SECOND) +" - " +
                 "Phone restarted" +":" + "\n";
@@ -56,8 +61,6 @@ public class phonerestarted extends Service{
                 Log.e(TAG,"Closing stats internally issue:  "+ closureError);
             }
         }
-
         stopSelf();
-
     }
 }

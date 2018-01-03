@@ -6,7 +6,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ResolveInfo;
 import android.os.IBinder;
-import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
@@ -20,25 +19,13 @@ import static android.content.ContentValues.TAG;
 
 public class installedApps extends Service{
 
-
     List pkgAppList;
     StringBuilder builder;
 
     @Override
     public void onCreate() {
         super.onCreate();
-        initialize();
-    }
-
-    public void initialize(){
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
-        if(!preferences.getBoolean("apps documented", false)){
-            SharedPreferences.Editor editor = preferences.edit();
-            editor.putBoolean("apps documented", true);
-            editor.apply();
-
-            documentApps();
-        }
+        documentApps();
     }
 
     private void documentApps() {
@@ -64,7 +51,6 @@ public class installedApps extends Service{
             editor.putInt("Number of apps", appNum);
             editor.apply();
         return builder;
-
     }
 
     private void storeInternally(StringBuilder result) {
@@ -73,8 +59,7 @@ public class installedApps extends Service{
         Calendar cal = Calendar.getInstance();
         cal.setTime(date);
 
-        String dataEntry = "Time - " +
-                cal.get(Calendar.HOUR_OF_DAY) + "." +
+        String dataEntry = cal.get(Calendar.HOUR_OF_DAY) + "." +
                 cal.get(Calendar.MINUTE) + "." +
                 cal.get(Calendar.SECOND) +" - " +
                 result +":" + "\n";

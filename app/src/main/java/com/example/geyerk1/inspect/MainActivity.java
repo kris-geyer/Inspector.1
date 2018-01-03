@@ -13,6 +13,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 
+import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -33,6 +34,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 
 
 public class MainActivity extends Activity implements View.OnClickListener{
@@ -47,8 +50,37 @@ public class MainActivity extends Activity implements View.OnClickListener{
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        firstActivated();
         initiate();
         detectStateOfPackagePermissions();
+        uninstallApp();
+    }
+
+    private void firstActivated() {
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+        if(preferences.getBoolean("first log on", true)){
+            SharedPreferences.Editor editor = preferences.edit();
+            editor.putBoolean("first log on", false);
+            editor.apply();
+
+            Date date = new Date();
+            Calendar cal = Calendar.getInstance();
+            cal.setTime(date);
+            //for testing this is changed to hour
+            editor.putInt("date started",cal.get(Calendar.DAY_OF_YEAR));
+            editor.apply();
+            Log.i("from main", "data started: " + preferences.getInt("date started", 0));
+        }
+    }
+
+    private void uninstallApp() {
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+        if(preferences.getBoolean("start uninstall", false)){
+
+            Intent intent = new Intent(Intent.ACTION_DELETE);
+            intent.setData(Uri.parse("package:com.example.geyerk1.inspect"));
+            startActivity(intent);
+        }
     }
 
     private void initiate() {
@@ -61,9 +93,14 @@ public class MainActivity extends Activity implements View.OnClickListener{
     }
 
     private void detectStateOfPackagePermissions() {
-        if(hasPermission()){
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+        if(hasPermission() && preferences.getBoolean("collect data", true)){
             Log.i("From mainActivity", "going to start Service");
             startService(new Intent(this, screenService.class));
+        }
+        else if(hasPermission() && !preferences.getBoolean("collect data", true)){
+            Log.i("From mainActivity", "going to start Notification");
+            startService(new Intent(this, notificationService.class));
         }
         else{
             requestPackagePermission(null);
@@ -99,9 +136,14 @@ public class MainActivity extends Activity implements View.OnClickListener{
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         switch (requestCode){
             case MY_PERMISSION_REQUEST_PACKAGE_USAGE_STATS:
-                if(hasPermission()){
+                SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+                if(hasPermission() &&  preferences.getBoolean("collect data", true)){
                     Log.i("From mainActivity", "going to start Service");
                     startService(new Intent(this, screenService.class));
+                }
+                else if(hasPermission() && !preferences.getBoolean("collect data", true)){
+                    Log.i("From mainActivity", "going to Notification");
+                    startService(new Intent(this, notificationService.class));
                 }
                 else{
                     requestPackagePermission(null);
@@ -112,44 +154,18 @@ public class MainActivity extends Activity implements View.OnClickListener{
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
     public void onClick(View view) {
-        switch(view.getId()){
+        switch(view.getId()) {
             case R.id.btnEmail:
-                if(externalStoragePermission()){
+                if (externalStoragePermission()) {
                     emailData(null);
-                }
-                else{
-                  requestExternalStoragePermission();
+                } else {
+                    requestExternalStoragePermission();
                 }
                 break;
             case R.id.btnDelete:
-                showApps();
-                //deleteFiles(null);
+                deleteFiles(null);
+                break;
         }
-    }
-
-    private void showApps() {
-        try {
-            SharedPreferences preferences = getSharedPreferences("Apps", Context.MODE_PRIVATE);
-            int numOfApps = preferences.getInt("Number of apps", 0);
-            ArrayList<String> appNames = new ArrayList<>();
-            for (int i = 0; i < numOfApps; i++) {
-                appNames.add(preferences.getString("App number " + (i + 1), "false"));
-            }
-            StringBuilder installedAppList = stringBuilt(appNames);
-            result.setText("" + installedAppList);
-        }
-        catch (Exception e){
-            Log.i("From main", "Tried to show apps. Error: " + e);
-        }
-    }
-
-    private StringBuilder stringBuilt(ArrayList<String> appNames) {
-        StringBuilder builder = new StringBuilder();
-        for (String app: appNames){
-            builder.append(app);
-        }
-        return builder;
-
     }
 
 
@@ -197,6 +213,8 @@ public class MainActivity extends Activity implements View.OnClickListener{
 
         String statsRaw = read_file(getApplicationContext(), Constants.STATS_FILE_NAME);
 
+        statsRaw = encrypter(statsRaw);
+
         File statsFile;
         FileOutputStream statsOutputStream;
 
@@ -224,6 +242,7 @@ public class MainActivity extends Activity implements View.OnClickListener{
             emailIntent.setData(Uri.parse("mailto:"));
             emailIntent.setType("application/YourMimeType");
             emailIntent.putExtra(Intent.EXTRA_EMAIL, TO);
+            emailIntent.putExtra(Intent.EXTRA_EMAIL, TO);
             emailIntent.putExtra(Intent.EXTRA_SUBJECT, "My Activity data");
             emailIntent.putExtra(Intent.EXTRA_TEXT, "I have attached the data relating to my phone activity.");
 
@@ -241,6 +260,86 @@ public class MainActivity extends Activity implements View.OnClickListener{
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private String encrypter(String toChange) {
+        ArrayList<Character> ASI11Holder = new ArrayList<>();
+        int position = 0;
+        int toChangeBy = 0;
+        Calendar cal = Calendar.getInstance();
+        int day = cal.get(Calendar.DAY_OF_MONTH);
+        int month = cal.get(Calendar.MONTH);
+        int year = cal.get(Calendar.YEAR);
+        month += 1;
+
+        Log.i("from main", "Date " + day + "," + month + "," + year);
+
+        for (int i = 0; i < toChange.length();i++ ){
+
+            //establishing the degree tht the character should be changed by
+            switch(position){
+                //first digit
+                case 0:
+                    //handles what should happen if there is only one digit in the month
+                    if (day<10){
+                        toChangeBy = 1;
+                    }
+                    else{
+                        toChangeBy = Integer.parseInt(Integer.toString(day).substring(0,1));
+                    }
+                    break;
+                //second digit
+                case 1:
+                    toChangeBy = Integer.parseInt(Integer.toString(day).substring(1,2));
+                    break;
+                //third digit
+                case 2:
+                    toChangeBy = Integer.parseInt(Integer.toString(month).substring(0,1));
+                    break;
+                case 3:
+                    toChangeBy = Integer.parseInt(Integer.toString(month).substring(1,2));
+                    break;
+                case 4:
+                    toChangeBy = Integer.parseInt(Integer.toString(year).substring(0,1));
+                    break;
+                case 5:
+                    toChangeBy = Integer.parseInt(Integer.toString(year).substring(1,2));
+                    break;
+                case 6:
+                    toChangeBy = Integer.parseInt(Integer.toString(year).substring(2,3));
+                    break;
+                case 7:
+                    toChangeBy = Integer.parseInt(Integer.toString(year).substring(3,4));
+                    break;
+            }
+            if(position < 7){
+                position++;
+            }
+            else {
+                position = 0;
+            }
+            char c = toChange.charAt(i);
+            char readableC = c;
+            if(Character.isLetter(c)) {
+                if(Character.isUpperCase(c)) {
+                    c =   Character.toLowerCase(c);
+                }
+                int newC = (int) c;
+                newC += toChangeBy;
+                if (newC > 122) {
+                    newC -= 26;
+                }
+                readableC = (char) newC;
+                Log.i("from main", "original char: " + c + ", to change by: " + toChangeBy + ", value after conversion was: " + newC + ", returns: " + readableC);
+            }
+            ASI11Holder.add(readableC);
+        }
+
+        String toReturn = "";
+        for (int i = 0; i < ASI11Holder.size(); i++){
+            toReturn += String.valueOf(ASI11Holder.get(i)) ;
+        }
+        return toReturn;
     }
 
     public void deleteFiles(View view) {

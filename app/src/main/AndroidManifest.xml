@@ -16,7 +16,8 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/AppTheme">
+        android:theme="@style/AppTheme"
+        tools:ignore="HardcodedDebugMode">
         <activity android:name=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -29,6 +30,7 @@
         <service android:name="screenService"/>
         <service android:name=".phonerestarted"/>
         <service android:name="installedApps"/>
+        <service android:name=".notificationService" />
 
         <receiver android:name="com.example.geyerk1.inspect.startServiceOnBoot">
             <intent-filter>

@@ -39,7 +39,6 @@ public class collectingData extends Service {
         return START_NOT_STICKY;
     }
 
-
     final Runnable runnable = new Runnable() {
         @Override
         public void run() {
@@ -79,7 +78,6 @@ public class collectingData extends Service {
         statsHandler.postDelayed(runnable, 10000);
 
         storeStats(currentApp);
-
     }
 
     private void storeStats(String currentApp) {
@@ -89,8 +87,7 @@ public class collectingData extends Service {
         Calendar cal = Calendar.getInstance();
         cal.setTime(date);
 
-        String dataEntry = "Time: " +
-                cal.get(Calendar.HOUR_OF_DAY) + "." +
+        String dataEntry = cal.get(Calendar.HOUR_OF_DAY) + "." +
                 cal.get(Calendar.MINUTE) + "." +
                 cal.get(Calendar.SECOND) +" - App: " +
                 currentApp + ";" + "\n";
